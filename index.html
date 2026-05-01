@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Billiard Balls Demo</title>
+  <style>
+    body { margin: 0; background: #222; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    class Ball {
+      constructor(x, y, radius, color, vx, vy) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.color = color;
+        this.vx = vx;
+        this.vy = vy;
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.closePath();
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Bounce off walls
+        if (this.x - this.radius < 0 || this.x + this.radius > canvas.width) {
+          this.vx *= -1;
+        }
+        if (this.y - this.radius < 0 || this.y + this.radius > canvas.height) {
+          this.vy *= -1;
+        }
+
+        this.draw();
+      }
+    }
+
+    // Generate 16 balls (like pool set)
+    const colors = [
+      "white","red","blue","yellow","green","purple","orange","brown",
+      "pink","cyan","lime","magenta","gold","silver","teal","navy"
+    ];
+    const balls = [];
+    for (let i = 0; i < 16; i++) {
+      const radius = 20;
+      const x = Math.random() * (canvas.width - radius*2) + radius;
+      const y = Math.random() * (canvas.height - radius*2) + radius;
+      const vx = (Math.random() - 0.5) * 6;
+      const vy = (Math.random() - 0.5) * 6;
+      balls.push(new Ball(x, y, radius, colors[i], vx, vy));
+    }
+
+    function detectCollisions() {
+      for (let i = 0; i < balls.length; i++) {
+        for (let j = i + 1; j < balls.length; j++) {
+          const b1 = balls[i];
+          const b2 = balls[j];
+          const dx = b2.x - b1.x;
+          const dy = b2.y - b1.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+
+          if (dist < b1.radius + b2.radius) {
+            // Simple elastic collision: swap velocities
+            [b1.vx, b2.vx] = [b2.vx, b1.vx];
+            [b1.vy, b2.vy] = [b2.vy, b1.vy];
+          }
+        }
+      }
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      balls.forEach(ball => ball.update());
+      detectCollisions();
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
