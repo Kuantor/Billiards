@@ -16,6 +16,10 @@
     const ctx = canvas.getContext("2d");
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+	
+	const N_Balls = 16;
+	const Radius = 20;
+	const Vel_Max = 3; // maximal initial projection of velocity of a ball
 
     class Ball {
       constructor(x, y, radius, color, vx, vy) {
@@ -51,37 +55,109 @@
       }
     }
 
-    // Generate 16 balls (like pool set)
+    // Generate N_Balls (16) balls (like pool set)
     const colors = [
       "white","red","blue","yellow","green","purple","orange","brown",
       "pink","cyan","lime","magenta","gold","silver","teal","navy"
     ];
     const balls = [];
-    for (let i = 0; i < 16; i++) {
-      const radius = 20;
-      const x = Math.random() * (canvas.width - radius*2) + radius;
-      const y = Math.random() * (canvas.height - radius*2) + radius;
-      const vx = (Math.random() - 0.5) * 6;
-      const vy = (Math.random() - 0.5) * 6;
+	const free_balls = []; // flags for just collided balls
+	const just_collided = [];
+	const clear_collisions_at_this_step = [];
+	const clear_next_step = [];
+	// alert('Created empty array for balls');
+    for (let i = 0; i < N_Balls; i++) {
+      const radius = Radius;
+	  
+	  var found_pos = false; // not found position for a new ball yet
+	  var counter = 0; // for debug
+	  const countMax = 20;
+	  let x, y;
+	  while (!found_pos && counter < countMax) {
+        x = Math.random() * (canvas.width - radius * 2) + radius;
+        y = Math.random() * (canvas.height - radius * 2) + radius;
+        
+		var intersection_found = false; // monitor intersections with other balls in the array
+	    // check if no intersection
+		for (let j = 0; j < balls.length; j++) {
+		  const dx = balls[j].x - x;
+          const dy = balls[j].y - y;
+		  const dist = Math.sqrt(dx*dx + dy*dy);
+		  const rad_sum = balls[j].radius + radius;
+		  // alert('Checking collision');
+		  if (dist <= rad_sum) {
+		    intersection_found = true;
+			// alert('Intersection found. Breaking for loop');
+			break;
+		  }
+		}
+        found_pos = !intersection_found;
+		counter++;
+      }
+	  
+	  if (counter == countMax) {
+	    alert('Counter exceeded 20!');
+	    break;
+	  }
+	  
+	  const vx = (Math.random() - 0.5) * 2 * Vel_Max;
+      const vy = (Math.random() - 0.5) * 2 * Vel_Max;
+	  	  
       balls.push(new Ball(x, y, radius, colors[i], vx, vy));
+	  just_collided.push(-1);
     }
 
     function detectCollisions() {
       for (let i = 0; i < balls.length; i++) {
-        for (let j = i + 1; j < balls.length; j++) {
+        for (let j = i + 1; j < balls.length; j++)
+		if (just_collided[i] != j) // (free_balls[i] && free_balls[j])
+		{
           const b1 = balls[i];
           const b2 = balls[j];
           const dx = b2.x - b1.x;
           const dy = b2.y - b1.y;
           const dist = Math.sqrt(dx*dx + dy*dy);
-
-          if (dist < b1.radius + b2.radius) {
-            // Simple elastic collision: swap velocities
-            [b1.vx, b2.vx] = [b2.vx, b1.vx];
-            [b1.vy, b2.vy] = [b2.vy, b1.vy];
+		  const rad_sum = b1.radius + b2.radius;
+		  
+          if (dist <= rad_sum) {
+            // Simple elastic collision: swap velocities - wrong formulas by Copilot !
+            // wrong: [b1.vx, b2.vx] = [b2.vx, b1.vx];
+            // wrong: [b1.vy, b2.vy] = [b2.vy, b1.vy];
+			
+			const cos_a = (b1.y - b2.y) / rad_sum;
+			const sin_a = (b2.x - b1.x) / rad_sum;
+			
+			const u1x_ = b1.vx * cos_a + b1.vy * sin_a;
+			const u1y_ = b2.vy * cos_a - b2.vx * sin_a;
+			
+			const v1x = u1x_ * cos_a - u1y_ * sin_a;
+			const v1y = u1x_ * sin_a + u1y_ * cos_a;
+			
+			const u2x_ = b2.vx * cos_a + b2.vy * sin_a;
+			const u2y_ = b1.vy * cos_a - b1.vx * sin_a;
+			
+			const v2x = u2x_ * cos_a - u2y_ * sin_a;
+			const v2y = u2x_ * sin_a + u2y_ * cos_a;
+			
+			[b1.vx, b1.vy] = [v1x, v1y];
+            [b2.vx, b2.vy] = [v2x, v2y];
+			
+			// free_balls[i] = false;
+			// free_balls[j] = false;
+			just_collided[i] = j;
+			clear_next_step.push(i);
+			clear_next_step.push(j);
           }
         }
       }
+	  
+	  for (let i = 0; i < clear_collisions_at_this_step.length; i++)
+	    just_collided[i] = -1;
+		
+      clear_collisions_at_this_step.length = 0;
+	  for (let i = 0; i < clear_next_step.length; i++)
+	    clear_collisions_at_this_step.push(clear_next_step[i]);
+	  clear_next_step.length = 0;
     }
 
     function animate() {
