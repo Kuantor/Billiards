@@ -146,13 +146,13 @@
 			// free_balls[j] = false;
 			just_collided[i] = j;
 			clear_next_step.push(i);
-			clear_next_step.push(j);
+			// clear_next_step.push(j);
           }
         }
       }
 	  
 	  for (let i = 0; i < clear_collisions_at_this_step.length; i++)
-	    just_collided[i] = -1;
+	    just_collided[clear_collisions_at_this_step[i]] = -1;
 		
       clear_collisions_at_this_step.length = 0;
 	  for (let i = 0; i < clear_next_step.length; i++)
