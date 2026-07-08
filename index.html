@@ -119,8 +119,8 @@
             // wrong: [b1.vx, b2.vx] = [b2.vx, b1.vx];
             // wrong: [b1.vy, b2.vy] = [b2.vy, b1.vy];
 			
-			const cos_a = (b1.y - b2.y) / rad_sum;
-			const sin_a = (b2.x - b1.x) / rad_sum;
+			const cos_a = (b1.y - b2.y) / dist;
+			const sin_a = (b2.x - b1.x) / dist;
 			
 			const u1x_ = b1.vx * cos_a + b1.vy * sin_a;
 			const u1y_ = b2.vy * cos_a - b2.vx * sin_a;
