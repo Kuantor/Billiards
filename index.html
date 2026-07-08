@@ -2,24 +2,192 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Billiard Balls Demo</title>
   <style>
-    body { margin: 0; background: #222; }
+    :root {
+      --felt: #1a6b3c;
+      --felt-dark: #0e4526;
+      --wood: #5a3a1e;
+      --wood-dark: #3d2712;
+      --brass: #c9a24b;
+      --brass-light: #e8cf8e;
+      --text: #f2ead8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #222;
+      font-family: Georgia, 'Times New Roman', serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ---------- Top panel: styled like the wooden rail of a table ---------- */
+    #topPanel {
+      background: linear-gradient(180deg, var(--wood) 0%, var(--wood-dark) 100%);
+      border-bottom: 3px solid var(--brass);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      color: var(--text);
+      z-index: 10;
+    }
+
+    #logo {
+      height: 62px;
+      border-radius: 8px;
+      border: 2px solid var(--brass);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      display: block;
+    }
+
+    .setting {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 110px;
+    }
+
+    .setting label {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--brass-light);
+      white-space: nowrap;
+    }
+
+    .setting .value {
+      font-weight: bold;
+      color: var(--text);
+    }
+
+    .setting input[type="range"] {
+      width: 110px;
+      accent-color: var(--brass);
+      cursor: pointer;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+      margin-left: auto;
+      flex-wrap: wrap;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      padding: 9px 16px;
+      border-radius: 20px;
+      border: 2px solid var(--brass);
+      cursor: pointer;
+      color: var(--text);
+      background: linear-gradient(180deg, var(--felt) 0%, var(--felt-dark) 100%);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      transition: transform 0.08s ease, box-shadow 0.08s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+    }
+
+    button:active { transform: translateY(1px); }
+
+    button.secondary {
+      background: linear-gradient(180deg, #4a4a4a 0%, #2c2c2c 100%);
+    }
+
+    button.active-mode {
+      background: linear-gradient(180deg, var(--brass) 0%, #9a7526 100%);
+      color: #241705;
+      font-weight: bold;
+    }
+
+    /* ---------- Canvas fills the rest ---------- */
+    #canvasWrap {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+
     canvas { display: block; }
+
+    @media (max-width: 760px) {
+      #logo { height: 44px; }
+      .setting input[type="range"] { width: 90px; }
+      .buttons { margin-left: 0; }
+    }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
+
+  <div id="topPanel">
+    <img id="logo" src="billiards.jpg" alt="Billiards">
+
+    <div class="setting">
+      <label>Balls: <span class="value" id="ballsVal">16</span></label>
+      <input type="range" id="ballsRange" min="2" max="16" step="1" value="16">
+    </div>
+
+    <div class="setting">
+      <label>Ball radius: <span class="value" id="radiusVal">20</span></label>
+      <input type="range" id="radiusRange" min="8" max="40" step="1" value="20">
+    </div>
+
+    <div class="setting">
+      <label>Max speed: <span class="value" id="speedVal">3</span></label>
+      <input type="range" id="speedRange" min="1" max="10" step="0.5" value="3">
+    </div>
+
+    <div class="setting">
+      <label>Friction: <span class="value" id="frictionVal">off</span></label>
+      <input type="range" id="frictionRange" min="0" max="30" step="1" value="0">
+    </div>
+
+    <div class="buttons">
+      <button id="applyBtn">Apply &amp; restart</button>
+      <button id="screensaverBtn" class="active-mode">Screensaver</button>
+      <button id="pauseBtn" class="secondary">Pause</button>
+      <button id="musicBtn" class="secondary" title="Slow Foxtrot: Safe And Sound (Capital Cities cover by Anton)">&#9835; Play Music</button>
+    </div>
+  </div>
+
+  <audio id="bgMusic" src="Safe_and_Sound_Foxtrot.mp3" loop preload="auto"></audio>
+
+  <div id="canvasWrap">
+    <canvas id="gameCanvas"></canvas>
+  </div>
 
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-	
-	const N_Balls = 16;
-	const Radius = 20;
-	const Vel_Max = 3; // maximal initial projection of velocity of a ball
+    const wrap = document.getElementById("canvasWrap");
+
+    function resizeCanvas() {
+      canvas.width = wrap.clientWidth;
+      canvas.height = wrap.clientHeight;
+    }
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    // ---------- Settings (defaults = original screensaver behavior) ----------
+    const defaults = {
+      nBalls: 16,
+      radius: 20,
+      velMax: 3,    // maximal initial projection of velocity of a ball
+      friction: 0   // 0 = off (balls roll forever); >0 = per-frame damping
+    };
+    let settings = { ...defaults };
 
     class Ball {
       constructor(x, y, radius, color, vx, vy) {
@@ -46,119 +214,218 @@
         // Bounce off walls
         if (this.x - this.radius < 0 || this.x + this.radius > canvas.width) {
           this.vx *= -1;
+          this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
         }
         if (this.y - this.radius < 0 || this.y + this.radius > canvas.height) {
           this.vy *= -1;
+          this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+        }
+
+        // Friction (0 = disabled). Slider value 1..30 maps to damping 0.999..0.97
+        if (settings.friction > 0) {
+          const damp = 1 - settings.friction / 1000;
+          this.vx *= damp;
+          this.vy *= damp;
+          if (Math.abs(this.vx) < 0.01 && Math.abs(this.vy) < 0.01) {
+            this.vx = 0;
+            this.vy = 0;
+          }
         }
 
         this.draw();
       }
     }
 
-    // Generate N_Balls (16) balls (like pool set)
+    // ---------- Ball setup ----------
     const colors = [
       "white","red","blue","yellow","green","purple","orange","brown",
       "pink","cyan","lime","magenta","gold","silver","teal","navy"
     ];
-    const balls = [];
-	const just_collided = [];
-	const clear_collisions_at_this_step = [];
-	const clear_next_step = [];
-    for (let i = 0; i < N_Balls; i++) {
-      const radius = Radius;
-	  
-	  var found_pos = false; // not found position for a new ball yet
-	  var counter = 0; // for debug
-	  const countMax = 20;
-	  let x, y;
-	  while (!found_pos && counter < countMax) {
-        x = Math.random() * (canvas.width - radius * 2) + radius;
-        y = Math.random() * (canvas.height - radius * 2) + radius;
-        
-		var intersection_found = false; // monitor intersections with other balls in the array
-		for (let j = 0; j < balls.length; j++) {
-		  const dx = balls[j].x - x;
-          const dy = balls[j].y - y;
-		  const dist = Math.sqrt(dx*dx + dy*dy);
-		  const rad_sum = balls[j].radius + radius;
-		  if (dist <= rad_sum) {
-		    intersection_found = true;
-			break;
-		  }
-		}
-        found_pos = !intersection_found;
-		counter++;
+    let balls = [];
+    let just_collided = [];
+    const clear_collisions_at_this_step = [];
+    const clear_next_step = [];
+
+    function initBalls() {
+      balls = [];
+      just_collided = [];
+      clear_collisions_at_this_step.length = 0;
+      clear_next_step.length = 0;
+
+      for (let i = 0; i < settings.nBalls; i++) {
+        const radius = settings.radius;
+
+        let found_pos = false; // not found position for a new ball yet
+        let counter = 0;
+        const countMax = 40;
+        let x, y;
+        while (!found_pos && counter < countMax) {
+          x = Math.random() * (canvas.width - radius * 2) + radius;
+          y = Math.random() * (canvas.height - radius * 2) + radius;
+
+          let intersection_found = false; // monitor intersections with other balls in the array
+          for (let j = 0; j < balls.length; j++) {
+            const dx = balls[j].x - x;
+            const dy = balls[j].y - y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const rad_sum = balls[j].radius + radius;
+            if (dist <= rad_sum) {
+              intersection_found = true;
+              break;
+            }
+          }
+          found_pos = !intersection_found;
+          counter++;
+        }
+
+        if (!found_pos) {
+          console.warn('Could not place ball ' + i + ' after ' + countMax + ' attempts — table too crowded.');
+          break;
+        }
+
+        const vx = (Math.random() - 0.5) * 2 * settings.velMax;
+        const vy = (Math.random() - 0.5) * 2 * settings.velMax;
+
+        balls.push(new Ball(x, y, radius, colors[i % colors.length], vx, vy));
+        just_collided.push(-1);
       }
-	  
-	  if (counter == countMax) {
-	    alert('Counter exceeded 20!');
-	    break;
-	  }
-	  
-	  const vx = (Math.random() - 0.5) * 2 * Vel_Max;
-      const vy = (Math.random() - 0.5) * 2 * Vel_Max;
-	  	  
-      balls.push(new Ball(x, y, radius, colors[i], vx, vy));
-	  just_collided.push(-1);
     }
 
+    // ---------- Collision detection (user's rotated-frame elastic collision) ----------
     function detectCollisions() {
       for (let i = 0; i < balls.length; i++) {
         for (let j = i + 1; j < balls.length; j++)
-		if (just_collided[i] != j)
-		{
+        if (just_collided[i] != j)
+        {
           const b1 = balls[i];
           const b2 = balls[j];
           const dx = b2.x - b1.x;
           const dy = b2.y - b1.y;
           const dist = Math.sqrt(dx*dx + dy*dy);
-		  const rad_sum = b1.radius + b2.radius;
-		  
+          const rad_sum = b1.radius + b2.radius;
+
           if (dist <= rad_sum) {
-            // Simple elastic collision: swap velocities - wrong formulas by Copilot !
-            // wrong: [b1.vx, b2.vx] = [b2.vx, b1.vx];
-            // wrong: [b1.vy, b2.vy] = [b2.vy, b1.vy];
-			
-			const cos_a = (b1.y - b2.y) / dist;
-			const sin_a = (b2.x - b1.x) / dist;
-			
-			const u1x_ = b1.vx * cos_a + b1.vy * sin_a;
-			const u1y_ = b2.vy * cos_a - b2.vx * sin_a;
-			
-			const v1x = u1x_ * cos_a - u1y_ * sin_a;
-			const v1y = u1x_ * sin_a + u1y_ * cos_a;
-			
-			const u2x_ = b2.vx * cos_a + b2.vy * sin_a;
-			const u2y_ = b1.vy * cos_a - b1.vx * sin_a;
-			
-			const v2x = u2x_ * cos_a - u2y_ * sin_a;
-			const v2y = u2x_ * sin_a + u2y_ * cos_a;
-			
-			[b1.vx, b1.vy] = [v1x, v1y];
+            const cos_a = (b1.y - b2.y) / dist;
+            const sin_a = (b2.x - b1.x) / dist;
+
+            const u1x_ = b1.vx * cos_a + b1.vy * sin_a;
+            const u1y_ = b2.vy * cos_a - b2.vx * sin_a;
+
+            const v1x = u1x_ * cos_a - u1y_ * sin_a;
+            const v1y = u1x_ * sin_a + u1y_ * cos_a;
+
+            const u2x_ = b2.vx * cos_a + b2.vy * sin_a;
+            const u2y_ = b1.vy * cos_a - b1.vx * sin_a;
+
+            const v2x = u2x_ * cos_a - u2y_ * sin_a;
+            const v2y = u2x_ * sin_a + u2y_ * cos_a;
+
+            [b1.vx, b1.vy] = [v1x, v1y];
             [b2.vx, b2.vy] = [v2x, v2y];
-			
-			just_collided[i] = j;
-			clear_next_step.push(i);
+
+            just_collided[i] = j;
+            clear_next_step.push(i);
           }
         }
       }
-	  
-	  for (let i = 0; i < clear_collisions_at_this_step.length; i++)
-	    just_collided[clear_collisions_at_this_step[i]] = -1;
-		
+
+      for (let i = 0; i < clear_collisions_at_this_step.length; i++)
+        just_collided[clear_collisions_at_this_step[i]] = -1;
+
       clear_collisions_at_this_step.length = 0;
-	  for (let i = 0; i < clear_next_step.length; i++)
-	    clear_collisions_at_this_step.push(clear_next_step[i]);
-	  clear_next_step.length = 0;
+      for (let i = 0; i < clear_next_step.length; i++)
+        clear_collisions_at_this_step.push(clear_next_step[i]);
+      clear_next_step.length = 0;
     }
 
+    // ---------- Animation loop ----------
+    let paused = false;
+
     function animate() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      balls.forEach(ball => ball.update());
-      detectCollisions();
+      if (!paused) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        balls.forEach(ball => ball.update());
+        detectCollisions();
+      }
       requestAnimationFrame(animate);
     }
 
+    // ---------- UI wiring ----------
+    const ballsRange = document.getElementById("ballsRange");
+    const radiusRange = document.getElementById("radiusRange");
+    const speedRange = document.getElementById("speedRange");
+    const frictionRange = document.getElementById("frictionRange");
+
+    const ballsVal = document.getElementById("ballsVal");
+    const radiusVal = document.getElementById("radiusVal");
+    const speedVal = document.getElementById("speedVal");
+    const frictionVal = document.getElementById("frictionVal");
+
+    function showValues() {
+      ballsVal.textContent = ballsRange.value;
+      radiusVal.textContent = radiusRange.value;
+      speedVal.textContent = speedRange.value;
+      frictionVal.textContent = frictionRange.value == 0 ? "off" : frictionRange.value;
+    }
+    [ballsRange, radiusRange, speedRange, frictionRange].forEach(el =>
+      el.addEventListener("input", showValues));
+    showValues();
+
+    function readSettings() {
+      settings.nBalls = parseInt(ballsRange.value);
+      settings.radius = parseInt(radiusRange.value);
+      settings.velMax = parseFloat(speedRange.value);
+      settings.friction = parseInt(frictionRange.value);
+    }
+
+    document.getElementById("applyBtn").addEventListener("click", () => {
+      readSettings();
+      initBalls();
+      setPaused(false);
+    });
+
+    // Screensaver = the original chaotic behavior: defaults, friction off
+    document.getElementById("screensaverBtn").addEventListener("click", () => {
+      settings = { ...defaults };
+      ballsRange.value = defaults.nBalls;
+      radiusRange.value = defaults.radius;
+      speedRange.value = defaults.velMax;
+      frictionRange.value = defaults.friction;
+      showValues();
+      initBalls();
+      setPaused(false);
+    });
+
+    const pauseBtn = document.getElementById("pauseBtn");
+    function setPaused(state) {
+      paused = state;
+      pauseBtn.textContent = paused ? "Resume" : "Pause";
+    }
+    pauseBtn.addEventListener("click", () => setPaused(!paused));
+
+    // ---------- Music toggle ----------
+    const bgMusic = document.getElementById("bgMusic");
+    const musicBtn = document.getElementById("musicBtn");
+
+    musicBtn.addEventListener("click", () => {
+      if (bgMusic.paused) {
+        bgMusic.play().then(() => {
+          musicBtn.innerHTML = "&#9835; Pause Music";
+          musicBtn.classList.add("active-mode");
+        }).catch(err => {
+          console.error("Could not play music:", err);
+          musicBtn.textContent = "Music file not found";
+          setTimeout(() => { musicBtn.innerHTML = "&#9835; Play Music"; }, 2500);
+        });
+      } else {
+        bgMusic.pause();
+        musicBtn.innerHTML = "&#9835; Play Music";
+        musicBtn.classList.remove("active-mode");
+      }
+    });
+
+    // ---------- Start ----------
+    initBalls();
     animate();
   </script>
 </body>
