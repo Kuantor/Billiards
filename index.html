@@ -40,7 +40,8 @@
       font-family: Georgia, 'Times New Roman', serif;
       display: flex;
       flex-direction: column;
-      height: 100vh;
+      height: 100vh;   /* fallback for older browsers */
+      height: 100dvh;  /* mobile: visible viewport only, so the whole table fits */
       overflow: hidden;
     }
 
@@ -308,7 +309,7 @@
       min-height: 0;
     }
 
-    canvas { display: block; }
+    canvas { display: block; touch-action: manipulation; }
   </style>
 </head>
 <body>
@@ -318,7 +319,7 @@
 
     <div class="setting">
       <label>Balls: <span class="value" id="ballsVal">16</span></label>
-      <input type="range" id="ballsRange" min="2" max="16" step="1" value="16">
+      <input type="range" id="ballsRange" min="2" max="64" step="1" value="16">
     </div>
 
     <div class="setting">
@@ -392,9 +393,15 @@
     window.addEventListener("resize", resizeCanvas);
 
     // ---------- Settings (defaults = original screensaver behavior) ----------
+    // Phone detection: a touch-primary device (pointer: coarse) with a small viewport.
+    // Viewport size alone is unreliable: laptops with 125-150% display scaling
+    // report a small innerHeight and would be misdetected as phones.
+    const isSmallScreen =
+      window.matchMedia && window.matchMedia("(pointer: coarse)").matches &&
+      Math.min(window.innerWidth, window.innerHeight) < 620;
     const defaults = {
       nBalls: 16,
-      radius: 20,
+      radius: isSmallScreen ? 12 : 20,
       velMax: 3,    // maximal initial projection of velocity of a ball
       friction: 0   // 0 = off (balls roll forever); >0 = per-frame damping
     };
@@ -480,7 +487,7 @@
 
         let found_pos = false; // not found position for a new ball yet
         let counter = 0;
-        const countMax = 40;
+        const countMax = 100;
         let x, y;
         while (!found_pos && counter < countMax) {
           x = Math.random() * (canvas.width - radius * 2) + radius;
@@ -554,14 +561,24 @@
     function computePockets() {
       const pr = Math.max(28, settings.radius * 1.6); // capture radius
       const w = canvas.width, h = canvas.height;
+
+      // 4 corner pockets, always
       pockets = [
-        { x: 0,     y: 0, r: pr },
-        { x: w / 2, y: 0, r: pr },
-        { x: w,     y: 0, r: pr },
-        { x: 0,     y: h, r: pr },
-        { x: w / 2, y: h, r: pr },
-        { x: w,     y: h, r: pr }
+        { x: 0, y: 0, r: pr },
+        { x: w, y: 0, r: pr },
+        { x: 0, y: h, r: pr },
+        { x: w, y: h, r: pr }
       ];
+
+      // 2 middle pockets go on the LONG rails, like a real table:
+      // wide table (laptop) -> top & bottom; tall table (portrait phone) -> left & right
+      if (h > w) {
+        pockets.push({ x: 0, y: h / 2, r: pr });
+        pockets.push({ x: w, y: h / 2, r: pr });
+      } else {
+        pockets.push({ x: w / 2, y: 0, r: pr });
+        pockets.push({ x: w / 2, y: h, r: pr });
+      }
     }
 
     function drawPockets() {
@@ -737,8 +754,7 @@
     window.addEventListener("keydown", (evt) => {
       if (evt.key === "Escape") {
         selectedBall = null;
-        const modal = document.getElementById("aboutModal");
-        if (modal) modal.hidden = true;
+        if (typeof closeAbout === "function") closeAbout();
       }
     });
 
@@ -945,19 +961,36 @@
 
     // ---------- About popup ----------
     const aboutModal = document.getElementById("aboutModal");
-    document.getElementById("logo").addEventListener("click", () => {
+    let pausedByModal = false; // don't override a pause the user set manually
+
+    function openAbout() {
       aboutModal.hidden = false;
-    });
-    document.getElementById("modalClose").addEventListener("click", () => {
+      if (!paused) {
+        setPaused(true);
+        pausedByModal = true;
+      }
+    }
+
+    function closeAbout() {
+      if (aboutModal.hidden) return;
       aboutModal.hidden = true;
-    });
+      if (pausedByModal) {
+        setPaused(false);
+        pausedByModal = false;
+      }
+    }
+
+    document.getElementById("logo").addEventListener("click", openAbout);
+    document.getElementById("modalClose").addEventListener("click", closeAbout);
     // clicking the dark backdrop (outside the card) also closes
     aboutModal.addEventListener("click", (evt) => {
-      if (evt.target === aboutModal) aboutModal.hidden = true;
+      if (evt.target === aboutModal) closeAbout();
     });
 
     // ---------- Start ----------
     window.addEventListener("resize", computePockets); // safe here: everything is declared
+    radiusRange.value = defaults.radius;  // phones start with smaller balls
+    showValues();
     setModeUI();
     initBalls();
     animate();
