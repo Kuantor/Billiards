@@ -3,7 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Billiard Balls Demo</title>
+  <title>Billiards</title>
+
+  <!-- Link preview for Telegram, WhatsApp, Viber, Facebook, etc. (Open Graph) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Billiards">
+  <meta property="og:description" content="Play billiards right in your browser: break the triangle rack, sink balls into six pockets, or enjoy the chaotic bouncing-balls screensaver — with a slow foxtrot soundtrack.">
+  <meta property="og:image" content="https://kuantor.github.io/Billiards/preview.jpg">
+  <meta property="og:url" content="https://kuantor.github.io/Billiards/">
+
+  <!-- Twitter/X card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Billiards">
+  <meta name="twitter:description" content="Play billiards right in your browser: break the rack, sink balls into pockets, or enjoy the chaotic screensaver — with music.">
+  <meta name="twitter:image" content="https://kuantor.github.io/Billiards/preview.jpg">
+
+  <!-- Regular search-engine description -->
+  <meta name="description" content="Browser billiards game with a triangle rack, six pockets, adjustable physics, and a screensaver mode.">
+
   <style>
     :root {
       --felt: #1a6b3c;
@@ -32,31 +49,112 @@
       background: linear-gradient(180deg, var(--wood) 0%, var(--wood-dark) 100%);
       border-bottom: 3px solid var(--brass);
       box-shadow: 0 4px 14px rgba(0,0,0,0.6);
-      padding: 8px 14px;
+      padding: 5px 11px;
       display: flex;
       align-items: center;
-      gap: 18px;
-      flex-wrap: wrap;
+      gap: 14px;
+      row-gap: 6px;
+      flex-wrap: wrap;            /* on narrow screens (phones) the panel wraps to extra lines */
       color: var(--text);
       z-index: 10;
     }
 
     #logo {
-      height: 62px;
-      border-radius: 8px;
+      height: 46px;
+      border-radius: 6px;
       border: 2px solid var(--brass);
       box-shadow: 0 2px 8px rgba(0,0,0,0.5);
       display: block;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    #logo:hover {
+      transform: scale(1.06);
+      box-shadow: 0 3px 12px rgba(0,0,0,0.7), 0 0 8px rgba(201,162,75,0.5);
+    }
+
+    /* ---------- About popup (click on the logo) ---------- */
+    #aboutModal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    #aboutModal[hidden] { display: none; }
+
+    .modal-card {
+      background: linear-gradient(180deg, var(--wood) 0%, var(--wood-dark) 100%);
+      border: 3px solid var(--brass);
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+      max-width: 560px;
+      max-height: 94vh;      /* content is sized to always fit — no scrollbar */
+      position: relative;
+      padding: 14px 16px 10px;
+      text-align: center;
+    }
+
+    .modal-card img {
+      /* Sized by viewport height so the whole card always fits on screen:
+         shrinks on short/phone screens instead of causing a scrollbar */
+      max-height: 42vh;
+      max-width: 100%;
+      width: auto;
+      height: auto;
+      margin: 0 auto;
+      border-radius: 8px;
+      border: 2px solid var(--brass);
+      display: block;
+    }
+
+    .modal-card h2 {
+      margin: 10px 0 4px;
+      color: var(--brass-light);
+      letter-spacing: 0.1em;
+      font-size: clamp(19px, 3.2vh, 24px);
+    }
+
+    .modal-card p {
+      margin: 5px 0;
+      line-height: 1.45;
+      font-size: clamp(12px, 2vh, 15px);
+      color: var(--text);
+    }
+
+    .modal-card .copyright {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--brass-light);
+    }
+
+    #modalClose {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 50%;
+      font-size: 18px;
+      line-height: 1;
+      background: linear-gradient(180deg, #4a4a4a 0%, #2c2c2c 100%);
     }
 
     .setting {
       display: flex;
       flex-direction: column;
-      gap: 2px;
-      min-width: 110px;
+      gap: 1px;
+      flex-shrink: 0;
     }
 
-    .setting label {
+    .setting label, .mode-toggle .toplabel {
       font-size: 11px;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -70,30 +168,113 @@
     }
 
     .setting input[type="range"] {
-      width: 110px;
+      width: 95px;
       accent-color: var(--brass);
       cursor: pointer;
+      margin: 2px 0 0;
+    }
+
+    .setting select {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 2px 5px;
+      background: var(--wood-dark);
+      color: var(--text);
+      border: 1px solid var(--brass);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    /* ---------- MODE toggle: unchecked = Screensaver, checked = Billiards ---------- */
+    .mode-toggle {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      flex-shrink: 0;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .mode-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .switch {
+      position: relative;
+      width: 44px;
+      height: 21px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .switch .track {
+      position: absolute;
+      inset: 0;
+      background: #2c2c2c;
+      border: 1px solid var(--brass);
+      border-radius: 20px;
+      transition: background 0.2s;
+    }
+
+    .switch .track::before {
+      content: "";
+      position: absolute;
+      width: 15px;
+      height: 15px;
+      left: 2px;
+      top: 2px;
+      background: var(--brass-light);
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+
+    .switch input:checked + .track {
+      background: var(--felt);
+    }
+
+    .switch input:checked + .track::before {
+      transform: translateX(23px);
+    }
+
+    .switch input:focus-visible + .track {
+      outline: 2px solid var(--brass-light);
+      outline-offset: 2px;
+    }
+
+    #modeName {
+      font-size: 13px;
+      font-weight: bold;
+      min-width: 86px;   /* keeps the panel from shifting when the word changes */
     }
 
     .buttons {
       display: flex;
       gap: 10px;
-      margin-left: auto;
       flex-wrap: wrap;
+      flex-shrink: 0;
     }
 
     button {
       font-family: inherit;
-      font-size: 14px;
+      font-size: 13px;
       letter-spacing: 0.04em;
-      padding: 9px 16px;
-      border-radius: 20px;
+      padding: 7px 13px;
+      border-radius: 17px;
       border: 2px solid var(--brass);
       cursor: pointer;
       color: var(--text);
       background: linear-gradient(180deg, var(--felt) 0%, var(--felt-dark) 100%);
       box-shadow: 0 2px 6px rgba(0,0,0,0.5);
       transition: transform 0.08s ease, box-shadow 0.08s ease;
+      white-space: nowrap;
     }
 
     button:hover {
@@ -105,6 +286,13 @@
 
     button.secondary {
       background: linear-gradient(180deg, #4a4a4a 0%, #2c2c2c 100%);
+    }
+
+    /* Reserve width for the longer "Pause Music" label so toggling
+       the music button never changes the row layout */
+    #musicBtn {
+      min-width: 138px;
+      text-align: center;
     }
 
     button.active-mode {
@@ -121,18 +309,12 @@
     }
 
     canvas { display: block; }
-
-    @media (max-width: 760px) {
-      #logo { height: 44px; }
-      .setting input[type="range"] { width: 90px; }
-      .buttons { margin-left: 0; }
-    }
   </style>
 </head>
 <body>
 
   <div id="topPanel">
-    <img id="logo" src="billiards.jpg" alt="Billiards">
+    <img id="logo" src="billiards.jpg" alt="Billiards — about this game" title="About this game">
 
     <div class="setting">
       <label>Balls: <span class="value" id="ballsVal">16</span></label>
@@ -154,15 +336,44 @@
       <input type="range" id="frictionRange" min="0" max="30" step="1" value="0">
     </div>
 
+    <div class="setting">
+      <label>Start position</label>
+      <select id="rackSelect">
+        <option value="random" selected>Random</option>
+        <option value="triangle">Triangle (rack)</option>
+      </select>
+    </div>
+
+    <label class="mode-toggle">
+      <span class="toplabel">Mode</span>
+      <span class="mode-row">
+        <span class="switch">
+          <input type="checkbox" id="modeToggle">
+          <span class="track"></span>
+        </span>
+        <span id="modeName">Screensaver</span>
+      </span>
+    </label>
+
     <div class="buttons">
-      <button id="applyBtn">Apply &amp; restart</button>
-      <button id="screensaverBtn" class="active-mode">Screensaver</button>
+      <button id="applyBtn">Apply &amp; Restart</button>
       <button id="pauseBtn" class="secondary">Pause</button>
       <button id="musicBtn" class="secondary" title="Slow Foxtrot: Safe And Sound (Capital Cities cover by Anton)">&#9835; Play Music</button>
     </div>
   </div>
 
   <audio id="bgMusic" src="Safe_and_Sound_Foxtrot.mp3" loop preload="auto"></audio>
+
+  <!-- About popup: opens when the logo is clicked -->
+  <div id="aboutModal" hidden>
+    <div class="modal-card">
+      <button id="modalClose" title="Close" aria-label="Close">&#10005;</button>
+      <img src="billiards.jpg" alt="Billiards">
+      <h2>Billiards</h2>
+      <p>Play billiards right in your browser: break the triangle rack, sink balls into six pockets, or enjoy the chaotic bouncing-balls screensaver &mdash; with a slow foxtrot soundtrack.</p>
+      <p class="copyright">&copy; 2026 Anton</p>
+    </div>
+  </div>
 
   <div id="canvasWrap">
     <canvas id="gameCanvas"></canvas>
@@ -188,6 +399,7 @@
       friction: 0   // 0 = off (balls roll forever); >0 = per-frame damping
     };
     let settings = { ...defaults };
+    let mode = "screensaver"; // "screensaver" | "billiards"
 
     class Ball {
       constructor(x, y, radius, color, vx, vy) {
@@ -207,9 +419,11 @@
         ctx.closePath();
       }
 
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
+      // Physics step, dt in fractions of a frame (1 = full frame).
+      // Smaller dt = finer movement = collisions caught earlier.
+      move(dt) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
 
         // Bounce off walls
         if (this.x - this.radius < 0 || this.x + this.radius > canvas.width) {
@@ -221,9 +435,10 @@
           this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
         }
 
-        // Friction (0 = disabled). Slider value 1..30 maps to damping 0.999..0.97
+        // Friction (0 = disabled), scaled to the substep so total damping
+        // per frame stays the same regardless of substep count
         if (settings.friction > 0) {
-          const damp = 1 - settings.friction / 1000;
+          const damp = Math.pow(1 - settings.friction / 1000, dt);
           this.vx *= damp;
           this.vy *= damp;
           if (Math.abs(this.vx) < 0.01 && Math.abs(this.vy) < 0.01) {
@@ -231,8 +446,6 @@
             this.vy = 0;
           }
         }
-
-        this.draw();
       }
     }
 
@@ -251,7 +464,17 @@
       just_collided = [];
       clear_collisions_at_this_step.length = 0;
       clear_next_step.length = 0;
+      selectedBall = null;
+      computePockets();
 
+      if (mode === "billiards" && rackSelect.value === "triangle") {
+        initTriangleRack();
+      } else {
+        initRandomRack();
+      }
+    }
+
+    function initRandomRack() {
       for (let i = 0; i < settings.nBalls; i++) {
         const radius = settings.radius;
 
@@ -283,11 +506,127 @@
           break;
         }
 
-        const vx = (Math.random() - 0.5) * 2 * settings.velMax;
-        const vy = (Math.random() - 0.5) * 2 * settings.velMax;
+        let vx = 0, vy = 0;
+        if (mode === "screensaver") {
+          vx = (Math.random() - 0.5) * 2 * settings.velMax;
+          vy = (Math.random() - 0.5) * 2 * settings.velMax;
+        }
 
-        balls.push(new Ball(x, y, radius, colors[i % colors.length], vx, vy));
+        const ball = new Ball(x, y, radius, colors[i % colors.length], vx, vy);
+        if (mode === "billiards" && i === 0) ball.isCue = true; // white ball
+        balls.push(ball);
         just_collided.push(-1);
+      }
+    }
+
+    // Classic pool rack: cue ball alone on the left, 15 balls in a
+    // 5-row triangle on the right, apex facing the cue ball.
+    function initTriangleRack() {
+      const r = Math.max(6, Math.round(settings.radius * 0.7)); // smaller balls in rack mode
+      const gap = r * 2 * 1.15;            // wider spacing between the racked balls
+      const cx = canvas.width;
+      const cy = canvas.height / 2;
+
+      // Cue ball (white) — the "standing alone" ball
+      const cue = new Ball(cx * 0.25, cy, r, "white", 0, 0);
+      cue.isCue = true;
+      balls.push(cue);
+      just_collided.push(-1);
+
+      // Triangle: rows grow away from the cue ball
+      const apexX = cx * 0.65;
+      let colorIdx = 1;                     // colors[0] = white is taken by the cue
+      for (let row = 0; row < 5; row++) {
+        for (let k = 0; k <= row; k++) {
+          const x = apexX + row * gap * 0.866;          // cos(30°)
+          const y = cy + (k - row / 2) * gap;
+          balls.push(new Ball(x, y, r, colors[colorIdx % colors.length], 0, 0));
+          just_collided.push(-1);
+          colorIdx++;
+        }
+      }
+    }
+
+    // ---------- Pockets (billiards mode only) ----------
+    // Six pockets like a real table: 4 corners + 2 in the middle of the long rails.
+    let pockets = [];
+
+    function computePockets() {
+      const pr = Math.max(28, settings.radius * 1.6); // capture radius
+      const w = canvas.width, h = canvas.height;
+      pockets = [
+        { x: 0,     y: 0, r: pr },
+        { x: w / 2, y: 0, r: pr },
+        { x: w,     y: 0, r: pr },
+        { x: 0,     y: h, r: pr },
+        { x: w / 2, y: h, r: pr },
+        { x: w,     y: h, r: pr }
+      ];
+    }
+
+    function drawPockets() {
+      for (const p of pockets) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = "#0a0a0a";
+        ctx.fill();
+        ctx.strokeStyle = "#c9a24b";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    // Respot the cue ball after it falls in (standard billiards rule)
+    function respotCue(cue) {
+      cue.vx = 0;
+      cue.vy = 0;
+      const baseX = canvas.width * 0.25;
+      const baseY = canvas.height / 2;
+      // try the base spot, then shift vertically until a free spot is found
+      for (let attempt = 0; attempt < 40; attempt++) {
+        const y = baseY + (attempt % 2 ? 1 : -1) * Math.ceil(attempt / 2) * cue.radius * 2.2;
+        let free = true;
+        for (const b of balls) {
+          if (b === cue) continue;
+          const dx = b.x - baseX, dy = b.y - y;
+          if (Math.sqrt(dx*dx + dy*dy) <= b.radius + cue.radius) { free = false; break; }
+        }
+        if (free && y > cue.radius && y < canvas.height - cue.radius) {
+          cue.x = baseX;
+          cue.y = y;
+          return;
+        }
+      }
+      cue.x = baseX; cue.y = baseY; // fallback
+    }
+
+    function checkPockets() {
+      if (mode !== "billiards") return;
+      let removed = false;
+
+      for (let i = balls.length - 1; i >= 0; i--) {
+        const b = balls[i];
+        for (const p of pockets) {
+          const dx = b.x - p.x;
+          const dy = b.y - p.y;
+          if (Math.sqrt(dx*dx + dy*dy) < p.r) {
+            if (b.isCue) {
+              respotCue(b);          // the white ball comes back to the table
+            } else {
+              balls.splice(i, 1);    // colored balls disappear
+              removed = true;
+              if (selectedBall === b) selectedBall = null;
+            }
+            break;
+          }
+        }
+      }
+
+      // Ball indices shifted — rebuild collision bookkeeping to stay consistent
+      if (removed) {
+        just_collided = balls.map(() => -1);
+        clear_collisions_at_this_step.length = 0;
+        clear_next_step.length = 0;
       }
     }
 
@@ -338,14 +677,150 @@
       clear_next_step.length = 0;
     }
 
+    // ---------- Billiards mode: select a ball, aim, shoot ----------
+    let selectedBall = null;
+    let aimX = 0, aimY = 0;
+    const ShotPower = 0.06;   // velocity per pixel of aim distance
+    const ShotMax = 20;       // cap on shot speed
+
+    function canvasPos(evt) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+    }
+
+    canvas.addEventListener("mousemove", (evt) => {
+      const p = canvasPos(evt);
+      aimX = p.x;
+      aimY = p.y;
+    });
+
+    canvas.addEventListener("click", (evt) => {
+      if (mode !== "billiards") return;
+      const p = canvasPos(evt);
+
+      if (selectedBall === null) {
+        // First click: try to pick a ball under the cursor.
+        // In triangle rack, only the cue ball (the one standing alone) is playable.
+        const cueOnly = rackSelect.value === "triangle";
+        for (let i = balls.length - 1; i >= 0; i--) {
+          if (cueOnly && !balls[i].isCue) continue;
+          const dx = balls[i].x - p.x;
+          const dy = balls[i].y - p.y;
+          if (Math.sqrt(dx*dx + dy*dy) <= balls[i].radius) {
+            selectedBall = balls[i];
+            aimX = p.x;
+            aimY = p.y;
+            break;
+          }
+        }
+      } else {
+        // Second click: shoot toward the cursor, force = distance
+        const dx = p.x - selectedBall.x;
+        const dy = p.y - selectedBall.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist > 1) {
+          const speed = Math.min(dist * ShotPower, ShotMax);
+          selectedBall.vx = (dx / dist) * speed;
+          selectedBall.vy = (dy / dist) * speed;
+        }
+        selectedBall = null;
+      }
+    });
+
+    // Cancel aiming with right click or Esc
+    canvas.addEventListener("contextmenu", (evt) => {
+      if (mode === "billiards" && selectedBall !== null) {
+        evt.preventDefault();
+        selectedBall = null;
+      }
+    });
+    window.addEventListener("keydown", (evt) => {
+      if (evt.key === "Escape") {
+        selectedBall = null;
+        const modal = document.getElementById("aboutModal");
+        if (modal) modal.hidden = true;
+      }
+    });
+
+    function drawAim() {
+      if (mode !== "billiards" || selectedBall === null) return;
+
+      const b = selectedBall;
+      const dx = aimX - b.x;
+      const dy = aimY - b.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const power = Math.min(dist * ShotPower, ShotMax) / ShotMax; // 0..1
+
+      // Highlight ring around the selected ball
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.radius + 5, 0, Math.PI * 2);
+      ctx.strokeStyle = "#e8cf8e";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (dist < 1) return;
+
+      // Aim line: green (weak) -> red (full power)
+      const r = Math.round(255 * power);
+      const g = Math.round(200 * (1 - power) + 55);
+      ctx.beginPath();
+      ctx.moveTo(b.x, b.y);
+      ctx.lineTo(aimX, aimY);
+      ctx.strokeStyle = "rgb(" + r + "," + g + ",60)";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Arrowhead at the cursor end
+      const angle = Math.atan2(dy, dx);
+      const ah = 12;
+      ctx.beginPath();
+      ctx.moveTo(aimX, aimY);
+      ctx.lineTo(aimX - ah * Math.cos(angle - 0.4), aimY - ah * Math.sin(angle - 0.4));
+      ctx.lineTo(aimX - ah * Math.cos(angle + 0.4), aimY - ah * Math.sin(angle + 0.4));
+      ctx.closePath();
+      ctx.fillStyle = "rgb(" + r + "," + g + ",60)";
+      ctx.fill();
+
+      // Power label
+      ctx.font = "bold 13px Georgia";
+      ctx.fillStyle = "#f2ead8";
+      ctx.fillText(Math.round(power * 100) + "%", aimX + 12, aimY - 10);
+    }
+
     // ---------- Animation loop ----------
     let paused = false;
 
+    // One physics substep: move everything a fraction of a frame,
+    // then resolve pockets and collisions at this finer resolution
+    function physicsStep(dt) {
+      balls.forEach(ball => ball.move(dt));
+      checkPockets();
+      detectCollisions();
+    }
+
     function animate() {
       if (!paused) {
+        // Adaptive substep count: the fastest ball may travel at most
+        // ~40% of the smallest radius per substep, so it can't jump
+        // over the narrow gaps of the triangle rack in one step.
+        let vmax = 0, rmin = Infinity;
+        for (const b of balls) {
+          const v = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+          if (v > vmax) vmax = v;
+          if (b.radius < rmin) rmin = b.radius;
+        }
+        const maxStep = Math.max(2, rmin * 0.4);
+        const nSub = Math.min(12, Math.max(1, Math.ceil(vmax / maxStep)));
+
+        for (let s = 0; s < nSub; s++) physicsStep(1 / nSub);
+
+        // Draw once per frame
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        balls.forEach(ball => ball.update());
-        detectCollisions();
+        if (mode === "billiards") drawPockets();
+        balls.forEach(ball => ball.draw());
+        drawAim();
       }
       requestAnimationFrame(animate);
     }
@@ -355,6 +830,20 @@
     const radiusRange = document.getElementById("radiusRange");
     const speedRange = document.getElementById("speedRange");
     const frictionRange = document.getElementById("frictionRange");
+    const rackSelect = document.getElementById("rackSelect");
+
+    // Changing the start position:
+    // - "Triangle (rack)" switches to billiards mode automatically (it's a billiards setup)
+    // - "Random" in billiards mode just re-racks
+    rackSelect.addEventListener("change", () => {
+      if (rackSelect.value === "triangle") {
+        enterBilliards();
+      } else if (mode === "billiards") {
+        readSettings();
+        initBalls();
+        setPaused(false);
+      }
+    });
 
     const ballsVal = document.getElementById("ballsVal");
     const radiusVal = document.getElementById("radiusVal");
@@ -384,16 +873,46 @@
       setPaused(false);
     });
 
+    const modeToggle = document.getElementById("modeToggle");
+    const modeName = document.getElementById("modeName");
+
+    function setModeUI() {
+      modeToggle.checked = (mode === "billiards");
+      modeName.textContent = (mode === "billiards") ? "Billiards" : "Screensaver";
+      canvas.style.cursor = (mode === "billiards") ? "crosshair" : "default";
+    }
+
+    // Billiards = stationary balls, click to select, click to shoot.
+    // Friction turns on (needed so shots come to a stop).
+    function enterBilliards() {
+      mode = "billiards";
+      if (parseInt(frictionRange.value) === 0) frictionRange.value = 8;
+      showValues();
+      readSettings();
+      setModeUI();
+      initBalls();
+      setPaused(false);
+    }
+
     // Screensaver = the original chaotic behavior: defaults, friction off
-    document.getElementById("screensaverBtn").addEventListener("click", () => {
+    function enterScreensaver() {
+      mode = "screensaver";
       settings = { ...defaults };
       ballsRange.value = defaults.nBalls;
       radiusRange.value = defaults.radius;
       speedRange.value = defaults.velMax;
       frictionRange.value = defaults.friction;
+      rackSelect.value = "random";   // screensaver is always a random scatter
       showValues();
+      setModeUI();
       initBalls();
       setPaused(false);
+    }
+
+    // MODE checkbox: unchecked = Screensaver, checked = Billiards
+    modeToggle.addEventListener("change", () => {
+      if (modeToggle.checked) enterBilliards();
+      else enterScreensaver();
     });
 
     const pauseBtn = document.getElementById("pauseBtn");
@@ -424,7 +943,22 @@
       }
     });
 
+    // ---------- About popup ----------
+    const aboutModal = document.getElementById("aboutModal");
+    document.getElementById("logo").addEventListener("click", () => {
+      aboutModal.hidden = false;
+    });
+    document.getElementById("modalClose").addEventListener("click", () => {
+      aboutModal.hidden = true;
+    });
+    // clicking the dark backdrop (outside the card) also closes
+    aboutModal.addEventListener("click", (evt) => {
+      if (evt.target === aboutModal) aboutModal.hidden = true;
+    });
+
     // ---------- Start ----------
+    window.addEventListener("resize", computePockets); // safe here: everything is declared
+    setModeUI();
     initBalls();
     animate();
   </script>
