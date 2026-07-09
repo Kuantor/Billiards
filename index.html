@@ -390,7 +390,7 @@
       canvas.height = wrap.clientHeight;
     }
     resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
+    // resize handling is registered at the bottom (handleResize), after all state exists
 
     // ---------- Settings (defaults = original screensaver behavior) ----------
     // Phone detection: a touch-primary device (pointer: coarse) with a small viewport.
@@ -644,6 +644,74 @@
         just_collided = balls.map(() => -1);
         clear_collisions_at_this_step.length = 0;
         clear_next_step.length = 0;
+      }
+    }
+
+    // ---------- Orientation / resize remapping ----------
+    // When the phone rotates, the canvas swaps proportions but the balls keep
+    // their old coordinates -> they end up clamped into the walls and overlapping.
+    // Fix: rotate the whole ball layout 90 degrees and scale it to the new canvas.
+    function remapBalls(oldW, oldH) {
+      const newW = canvas.width, newH = canvas.height;
+      if (!oldW || !oldH || balls.length === 0) return;
+      if (oldW === newW && oldH === newH) return;
+
+      const flipped = (oldW > oldH) !== (newW > newH); // orientation changed?
+
+      for (const b of balls) {
+        if (flipped) {
+          // rotate the table 90° clockwise, then scale to the new size
+          const nx = (1 - b.y / oldH) * newW;
+          const ny = (b.x / oldW) * newH;
+          b.x = nx;
+          b.y = ny;
+          // velocities rotate with the table (same 90° turn, magnitude kept)
+          const vx = -b.vy, vy = b.vx;
+          b.vx = vx;
+          b.vy = vy;
+        } else {
+          // same orientation, just a size change (e.g. URL bar): scale proportionally
+          b.x = b.x * newW / oldW;
+          b.y = b.y * newH / oldH;
+        }
+        b.x = Math.max(b.radius, Math.min(newW - b.radius, b.x));
+        b.y = Math.max(b.radius, Math.min(newH - b.radius, b.y));
+      }
+
+      // Scaling is not uniform (aspect changes), so some balls may now overlap:
+      // gently push overlapping pairs apart until everything is clean
+      separateOverlaps();
+
+      // reset collision bookkeeping and any aiming in progress
+      just_collided = balls.map(() => -1);
+      clear_collisions_at_this_step.length = 0;
+      clear_next_step.length = 0;
+      selectedBall = null;
+    }
+
+    function separateOverlaps() {
+      for (let iter = 0; iter < 25; iter++) {
+        let anyOverlap = false;
+        for (let i = 0; i < balls.length; i++) {
+          for (let j = i + 1; j < balls.length; j++) {
+            const b1 = balls[i], b2 = balls[j];
+            let dx = b2.x - b1.x, dy = b2.y - b1.y;
+            let d = Math.sqrt(dx*dx + dy*dy);
+            const minDist = b1.radius + b2.radius;
+            if (d < minDist) {
+              anyOverlap = true;
+              if (d < 0.001) { dx = 1; dy = 0; d = 1; } // coincident centers: pick a direction
+              const push = (minDist - d) / 2 + 0.1;
+              b1.x -= (dx / d) * push;  b1.y -= (dy / d) * push;
+              b2.x += (dx / d) * push;  b2.y += (dy / d) * push;
+              b1.x = Math.max(b1.radius, Math.min(canvas.width - b1.radius, b1.x));
+              b1.y = Math.max(b1.radius, Math.min(canvas.height - b1.radius, b1.y));
+              b2.x = Math.max(b2.radius, Math.min(canvas.width - b2.radius, b2.x));
+              b2.y = Math.max(b2.radius, Math.min(canvas.height - b2.radius, b2.y));
+            }
+          }
+        }
+        if (!anyOverlap) break;
       }
     }
 
@@ -988,7 +1056,13 @@
     });
 
     // ---------- Start ----------
-    window.addEventListener("resize", computePockets); // safe here: everything is declared
+    function handleResize() {
+      const oldW = canvas.width, oldH = canvas.height;
+      resizeCanvas();
+      computePockets();
+      remapBalls(oldW, oldH);
+    }
+    window.addEventListener("resize", handleResize); // safe here: everything is declared
     radiusRange.value = defaults.radius;  // phones start with smaller balls
     showValues();
     setModeUI();
